@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Генератор випадкових зображень — picsum.photos</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#121923; --muted:#8aa0b7; --text:#e8eef5; --accent:#4fa3ff; --accent-2:#7bd389; --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Arial,sans-serif;background:linear-gradient(180deg,#0b0f14,#0e1420 40%,#0b0f14);color:var(--text);}
+    .wrap{max-width:1000px;margin:0 auto;padding:24px}
+    .title{font-size:clamp(20px,3.5vw,32px);font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:.6rem;}
+    .title small{font-weight:600;font-size:.9rem;color:var(--muted)}
+    .card{background:rgba(18,25,35,.7);backdrop-filter:blur(6px);border:1px solid #1c2a3a;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:16px}
+    .controls{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+    .controls .col-span-2{grid-column:span 2}
+    .controls .col-span-3{grid-column:span 3}
+    .controls label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px}
+    .controls input[type="number"], .controls input[type="text"], .controls select{
+      width:100%;padding:10px 12px;border-radius:12px;border:1px solid #253445;background:#0f1722;color:var(--text);outline:none
+    }
+    .controls .row{display:flex;gap:10px;align-items:center}
+    .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+    button, .ghost{
+      border:none;border-radius:14px;padding:10px 14px;font-weight:700;letter-spacing:.2px;cursor:pointer;
+      background:linear-gradient(180deg,#2b6cb0,#2a4365);color:#fff;border:1px solid #284468
+    }
+    button:hover{filter:brightness(1.06)}
+    .ghost{background:transparent;border:1px dashed #34506e;color:var(--muted)}
+    .success{background:linear-gradient(180deg,#2f855a,#22543d);border-color:#276749}
+    .danger{background:linear-gradient(180deg,#c53030,#822727);border-color:#9b2c2c}
+    .gallery{margin-top:16px;display:grid;grid-template-columns:1fr;gap:16px}
+    .viewer{position:relative;overflow:hidden;border-radius:18px;border:1px solid #1c2a3a;background:#0f1722;min-height:280px;display:grid;place-items:center}
+    .viewer img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;transition:opacity .25s ease}
+    .spinner{display:none}
+    .viewer.loading .spinner{display:block}
+    .viewer.loading img{opacity:.2}
+    .status{font-size:.9rem;color:var(--muted)}
+    .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+    .thumbs a{border:1px solid #203049;border-radius:10px;overflow:hidden;display:block}
+    .thumbs img{display:block;width:100%;height:80px;object-fit:cover}
+    .linkbar{display:flex;gap:10px;flex-wrap:wrap}
+    .note{color:var(--muted);font-size:.85rem}
+    .slideshow-controls{margin-top:16px;padding:12px;border:1px solid #1c2a3a;border-radius:12px;background:#101720}
+    .slideshow{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:1000}
+    .slideshow img{max-width:90%;max-height:90%;object-fit:contain;animation:fade 1s ease}
+    @keyframes fade{from{opacity:0}to{opacity:1}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">🖼️ Генератор випадкових зображень <small>на базі <code>picsum.photos</code></small></div>
+
+    <div class="card" role="region" aria-label="Панель керування">
+      <div class="controls">
+        <div>
+          <label for="w">Ширина (px)</label>
+          <input id="w" type="number" min="16" max="5000" value="800" />
+        </div>
+        <div>
+          <label for="h">Висота (px)</label>
+          <input id="h" type="number" min="16" max="5000" value="500" />
+        </div>
+        <div>
+          <label for="seed">Seed (необов'язково)</label>
+          <input id="seed" type="text" placeholder="Напр.: cat-42" />
+        </div>
+        <div>
+          <label for="blur">Розмиття</label>
+          <select id="blur">
+            <option value="0">немає</option>
+            <option value="1">легке</option>
+            <option value="2">сильніше</option>
+            <option value="3">сильне</option>
+            <option value="4">дуже сильне</option>
+            <option value="5">максимум</option>
+          </select>
+        </div>
+        <div class="row col-span-2" style="margin-top:22px">
+          <label class="row" style="gap:6px"><input id="gray" type="checkbox"/> ч/б (grayscale)</label>
+          <label class="row" style="gap:6px"><input id="square" type="checkbox"/> квадрат 1:1</label>
+        </div>
+      </div>
+      <div class="btns">
+        <button id="btnGen">🎲 Нова випадкова</button>
+        <button id="btnSameSeed" class="ghost" title="Згенерувати ще раз із тим самим seed">♻️ Перегенерувати</button>
+        <button id="btnCopy" class="success">🔗 Копіювати URL</button>
+        <a id="btnOpen" class="ghost" target="_blank" rel="noopener">↗️ Відкрити у вкладці</a>
+        <a id="btnDownload" class="ghost" download>⬇️ Завантажити</a>
+        <button id="btnClear" class="danger">🧹 Очистити мініатюри</button>
+      </div>
+      <p class="note">Порада: якщо поле <em>Seed</em> порожнє, кожен клік дає нову картинку (додаємо анти-кеш параметр). Якщо ввести Seed — отримаєте стабільне зображення для цих розмірів.</p>
+    </div>
+
+    <div class="slideshow-controls card">
+      <h3>🎬 Створити слайдшоу</h3>
+      <label>Кількість картинок: <input id="slideCount" type="number" value="5" min="1" max="50"></label>
+      <label>Інтервал (сек): <input id="slideInterval" type="number" value="3" min="1" max="20"></label>
+      <div class="btns">
+        <button id="btnCreateSlideshow">📥 Створити слайдшоу</button>
+        <button id="btnStartSlideshow" disabled>▶️ Дивитись слайдшоу</button>
+      </div>
+      <p id="slideshowStatus" class="note"></p>
+    </div>
+
+    <div class="gallery">
+      <div id="viewer" class="viewer">
+        <div class="spinner">⏳ Завантаження…</div>
+        <img id="img" alt="Випадкове зображення з picsum.photos" />
+      </div>
+      <div class="linkbar">
+        <span class="status" id="status">URL не згенеровано</span>
+      </div>
+      <div class="thumbs" id="thumbs" aria-label="Історія мініатюр"></div>
+    </div>
+  </div>
+
+  <div class="slideshow" id="slideshow">
+    <img id="slideImg" alt="Слайдшоу">
+  </div>
+
+  <script>
+    const $ = (sel)=>document.querySelector(sel);
+    const w = $('#w');
+    const h = $('#h');
+    const seed = $('#seed');
+    const blur = $('#blur');
+    const gray = $('#gray');
+    const square = $('#square');
+
+    const btnGen = $('#btnGen');
+    const btnSameSeed = $('#btnSameSeed');
+    const btnCopy = $('#btnCopy');
+    const btnOpen = $('#btnOpen');
+    const btnDownload = $('#btnDownload');
+    const btnClear = $('#btnClear');
+
+    const viewer = $('#viewer');
+    const img = $('#img');
+    const thumbs = $('#thumbs');
+    const status = $('#status');
+
+    const btnCreateSlideshow = $('#btnCreateSlideshow');
+    const btnStartSlideshow = $('#btnStartSlideshow');
+    const slideCount = $('#slideCount');
+    const slideInterval = $('#slideInterval');
+    const slideshowStatus = $('#slideshowStatus');
+    const slideshow = $('#slideshow');
+    const slideImg = $('#slideImg');
+
+    let slideshowUrls = [];
+
+    function buildUrl(opts){
+      const W = Math.max(16, Math.min(5000, +opts.w || 800));
+      const H = Math.max(16, Math.min(5000, +opts.h || 600));
+      const blurLvl = Math.max(0, Math.min(10, +opts.blur || 0));
+      const grayscale = !!opts.gray;
+      const seedVal = (opts.seed||'').trim();
+
+      let path;
+      if(seedVal){
+        path = `https://picsum.photos/seed/${encodeURIComponent(seedVal)}/${W}/${H}`;
+      } else {
+        path = `https://picsum.photos/${W}/${H}`;
+      }
+      const q = new URLSearchParams();
+      if (grayscale) q.set('grayscale','');
+      if (blurLvl>0) q.set('blur', String(blurLvl));
+      if (!seedVal) q.set('random', String(Date.now()+Math.random()));
+      return path + (q.toString()?`?${q.toString()}`:'');
+    }
+
+    async function preloadImages(urls){
+      let loaded = 0;
+      return Promise.all(urls.map(url => new Promise((resolve)=>{
+        const img = new Image();
+        img.onload = ()=>{loaded++; slideshowStatus.textContent=`Завантажено ${loaded}/${urls.length}`; resolve(url)};
+        img.onerror = ()=>resolve(url);
+        img.src = url;
+      })));
+    }
+
+    btnCreateSlideshow.addEventListener('click', async ()=>{
+      const count = Math.min(50, Math.max(1, +slideCount.value||5));
+      slideshowStatus.textContent = '⏳ Завантаження картинок...';
+      btnCreateSlideshow.disabled = true;
+      const urls = [];
+      for(let i=0;i<count;i++){
+        urls.push(buildUrl({
+          w: w.value,
+          h: h.value,
+          seed: '',
+          blur: blur.value,
+          gray: gray.checked
+        }));
+      }
+      slideshowUrls = await preloadImages(urls);
+      slideshowStatus.textContent = '✅ Слайдшоу готове!';
+      btnStartSlideshow.disabled = false;
+      btnCreateSlideshow.disabled = false;
+    });
+
+    btnStartSlideshow.addEventListener('click', ()=>{
+      if(slideshowUrls.length===0) return;
+      let idx = 0;
+      const interval = Math.max(1, +slideInterval.value||3)*1000;
+      slideshow.style.display='flex';
+      function showNext(){
+        slideImg.style.opacity=0;
+        setTimeout(()=>{
+          slideImg.src = slideshowUrls[idx];
+          slideImg.onload = ()=>{slideImg.style.opacity=1};
+        },300);
+        idx = (idx+1)%slideshowUrls.length;
+      }
+      showNext();
+      const timer = setInterval(showNext, interval);
+      slideshow.onclick = ()=>{
+        clearInterval(timer);
+        slideshow.style.display='none';
+      };
+    });
+
+    function addThumb(url){
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel='noopener';
+      const t = document.createElement('img');
+      t.src = url; t.alt = 'мініатюра';
+      a.appendChild(t);
+      thumbs.prepend(a);
+      const items = [...thumbs.children];
+      if(items.length>30){ items.slice(30).forEach(n=>n.remove()); }
+    }
+
+    function generate(randomizeSeed=false){
+      if(randomizeSeed){
+        seed.value = '';
+      }
+      const url = buildUrl({
+        w: w.value,
+        h: h.value,
+        seed: seed.value,
+        blur: blur.value,
+        gray: gray.checked
+      });
+      loadImage(url);
+    }
+
+    async function loadImage(url){
+      viewer.classList.add('loading');
+      status.textContent = url;
+      btnOpen.href = url;
+      btnDownload.href = url;
+      try{
+        await new Promise((res,rej)=>{
+          img.onload = ()=>res();
+          img.onerror = (e)=>rej(e);
+          img.src = url;
+        });
+        addThumb(url);
+      }catch(e){
+        alert('Не вдалося завантажити зображення. Спробуйте інші параметри.');
+        console.error(e);
+      }finally{
+        viewer.classList.remove('loading');
+      }
+    }
+
+    btnGen.addEventListener('click', ()=> generate(true));
+    btnSameSeed.addEventListener('click', ()=> generate(false));
+    btnCopy.addEventListener('click', async ()=>{
+      const url = img.src || status.textContent;
+      try{
+        await navigator.clipboard.writeText(url);
+        btnCopy.textContent = '✓ Скопійовано';
+        setTimeout(()=>btnCopy.textContent='🔗 Копіювати URL', 1200);
+      }catch{ alert('Не вдалося скопіювати.'); }
+    });
+    btnClear.addEventListener('click', ()=>{ thumbs.innerHTML=''; });
+
+    generate(true);
+  </script>
+</body>
+</html>
+
